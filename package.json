@@ -1,0 +1,10 @@
+{
+  "name": "vk-mining",
+  "version": "0.0.1",
+  "dependencies": {
+    "request": "*",
+    "vksdk": "*",
+    "mongodb": "*",
+    "mystem3": "*"
+  }
+}
