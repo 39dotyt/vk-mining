@@ -1,7 +1,9 @@
 /**
- * @license GPL-3.0+
+ * @license MIT
  * @author 0@39.yt (Yurij Mikhalevich)
+ * @module 'words-meaningless'
  */
+'use strict';
 
 // conjunctions source:  http://rusgram.ru/%D0%A1%D0%BE%D1%8E%D0%B7
 

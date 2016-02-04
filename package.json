@@ -1,10 +1,32 @@
 {
   "name": "vk-mining",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "license": "MIT",
+  "description": "vk.com mining scripts",
+  "author": {
+    "name": "Yurij Mikhalevich",
+    "email": "0@39.yt",
+    "url": "https://39.yt/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/39dotyt/vk-mining"
+  },
+  "bugs": {
+    "url": "https://github.com/39dotyt/vk-mining/issues"
+  },
+  "homepage": "https://github.com/39dotyt/vk-mining#readme",
+  "keywords": [
+    "stuff"
+  ],
+  "main": "vk-miner",
+  "readmeFilename": "README.md",
   "dependencies": {
-    "request": "*",
-    "vksdk": "*",
-    "mongodb": "*",
-    "mystem3": "*"
+    "co": "^4.6.0",
+    "request": "^2.69.0",
+    "vksdk": "^5.3.1",
+    "mongodb": "^2.1.5",
+    "mystem3": "^1.0.7",
+    "yargs": "^3.32.0"
   }
 }

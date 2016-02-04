@@ -1,7 +1,9 @@
 /**
- * @license GPL-3.0+
+ * @license MIT
  * @author 0@39.yt (Yurij Mikhalevich)
+ * @module 'vk-word-counter'
  */
+'use strict';
 
 var MongoClient = require('mongodb').MongoClient;
 var MyStem = require('mystem3');
