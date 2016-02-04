@@ -1,5 +1,12 @@
-# VK-mining project
+# vk-mining project
 
-Vk.com mining scripts.
+vk.com mining scripts.
 
-Written for Text & Web mining article.
+Written for a paper related to Text & Web mining.
+
+## Usage and reference
+
+```sh
+$ ./vk-miner
+$ ./vk-word-counter
+```

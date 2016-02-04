@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * @license MIT
  * @author 0@39.yt (Yurij Mikhalevich)
@@ -5,15 +6,41 @@
  */
 'use strict';
 
-var MongoClient = require('mongodb').MongoClient;
-var MyStem = require('mystem3');
-var myStem = new MyStem();
-myStem.start();
+const argv = require('yargs')
+    .option('words', {
+      alias: 'w',
+      default: true,
+      type: 'boolean'
+    })
+    .option('phrases', {
+      alias: 'p',
+      default: [],
+      type: 'array',
+      description: 'enables experimental phrases extraction',
+      usage: 'specify the list of phrases length, for example: 2,3,4,' +
+      'note that work with long phrases may took significant time'
+    })
+    .option('mongoPort', {
+      alias: 'P',
+      default: 27017,
+      type: 'number'
+    })
+    .option('mongoHost', {
+      alias: 'H',
+      default: 'localhost'
+    })
+    .option('mongoDbName', {
+      alias: 'D',
+      demand: true,
+      type: 'string'
+    })
+    .argv;
+const co = require('co');
+const MyStem = require('mystem3');
+const MongoClient = require('mongodb').MongoClient;
+const meaninglessWords = require('./words-meaningless');
 
-var meaninglessWords = require('./words-meaningless');
-var settings = require('./settings');
-
-var dbURI = settings.dbURI;
+// next functions will be executed within MongoDB, so they should be in ES5
 
 function map() {
   function extract(document) {
@@ -33,7 +60,7 @@ function map() {
       if (1 === word.length || word.length > 512) return;
       var result = {};
       var date = new Date(document.date * 1000);
-      var monthIndex = (date.getFullYear() * 12) + date.getMonth() + 1;
+      var monthIndex = `${date.getFullYear()}-${date.getMonth() + 1}`;
       result[monthIndex] = 1;
       emit(word, result);
     });
@@ -88,70 +115,59 @@ function phrasesMap() {
   });
 }
 
+// end of mongodb functions
 
-MongoClient.connect(dbURI, function(err, db) {
-  if (err) throw err;
-
-  var posts = db.collection('posts');
-
-  var fMap = map.toString().replace('meaninglessWords', JSON.stringify(meaninglessWords));
-
-  posts.mapReduce(fMap, reduce, {out: {replace: 'words'}, finalize: finalize}, function() {
-    console.log('finished words', err);
-    console.log('starting normalization process');
-    normalize(db.collection('words'), db.collection('wordsNorm'));
-  });
-
-  //for (var length = 2; length <= 5; ++length) {
-  //  var pfMap = phrasesMap.toString().replace(new RegExp('phraseLength', 'g'), length.toString());
-  //  posts.mapReduce(pfMap, reduce, {out: 'phrases-' + length, sort: {date: -1}, limit: 300}, function() {
-  //    console.log('finished phrases-' + this.length, err);
-  //    db.createIndex('phrases-' + this.length.toString(), {value: true});
-  //  }.bind({length: length}));
-  //}
-});
-
-var queue = [];
-
-function normalize(collection, normalizedCollection) {
-  var stream = collection.find().stream();
-  stream.on('end', function() {
-    console.log('normalization prepared');
-    startQueue();
-  });
-  stream.on('data', function(document) {
-    enqueue(function(cb) {
-      // overall enqueue mechanism is very unoptimal, shitty piece of code
-      // i will not fix it right now in the fight against perfectionism
-      myStem.lemmatize(document._id).then(function(normalized) {
-        var increment = {};
-        for (var field in document.value) {
-          if (!document.value.hasOwnProperty(field)) continue;
-          increment['value.' + field.toString()] = document.value[field];
-        }
-        normalizedCollection.updateOne({_id: normalized}, {$inc: increment}, {upsert: true}, function (err) {
-          if (err) console.error('normalization err', err);
-          cb();
-        });
-      }).catch(console.error);
-    });
-  });
-}
-
-function done() {
-  if (!queue.length) {
-    console.log('normalization finished');
-    return;
+function* normalize(collection, normalizedCollection) {
+  const myStem = new MyStem();
+  myStem.start();
+  const cursor = collection.find();
+  while (yield cursor.hasNext()) {
+    const document = yield cursor.next();
+    const normalized = yield myStem.lemmatize(document._id);
+    const increment = {};
+    for (let field in document.value) {
+      if (!document.value.hasOwnProperty(field)) continue;
+      increment[`value.${field}`] = document.value[field];
+    }
+    yield normalizedCollection.updateOne({_id: normalized}, {$inc: increment}, {upsert: true});
   }
-  var fn = queue.shift();
-  fn(done);
+  myStem.stop();
 }
 
-function enqueue(fn) {
-  queue.push(fn);
-}
+co(function*() {
+  const db = yield MongoClient.connect(`mongodb://${argv.mongoHost}:${argv.mongoPort}/${argv.mongoDbName}`);
+  const posts = db.collection('posts');
 
-function startQueue() {
-  console.log('normalization started');
-  done();
-}
+  if (argv.words) {
+    console.log('* processing words');
+    console.log('\textracting words');
+    // replace because function will be passed to Mongo as string
+    const fMap = map.toString().replace('meaninglessWords', JSON.stringify(meaninglessWords));
+    yield posts.mapReduce(fMap, reduce, {out: {replace: 'words'}, finalize});
+    console.log('\tfinished words extraction');
+    console.log('\tnormalizing words');
+    const collections = yield db.listCollections().toArray();
+    for (let i = 0; i < collections.length; ++i) {
+      if (collections[i].name === 'wordsNorm') {
+        yield db.dropCollection('wordsNorm');
+        break;
+      }
+    }
+    yield normalize(db.collection('words'), db.collection('wordsNorm'));
+    console.log('\tfinished words normalization');
+    console.log('* finished words processing')
+  }
+
+  for (let i = 0; i < argv.phrases.length; ++i) {
+    const phraseLength = argv.phrases[i];
+    if (phraseLength < 2) continue;
+    const pfMap = phrasesMap.toString().replace(new RegExp('phraseLength', 'g'), phraseLength);
+    console.log(`* extracting phrases with length of ${phraseLength}`);
+    yield posts.mapReduce(pfMap, reduce, {out: {replace: `phrases-${phraseLength}`}, sort: {date: -1}, limit: 300});
+    console.log(`* finished extraction of phrases with length of ${phraseLength}`);
+    yield db.createIndex(`phrases-${phraseLength}`, {value: true});
+  }
+  db.close();
+}).catch(err => {
+  console.error(err.stack);
+});
