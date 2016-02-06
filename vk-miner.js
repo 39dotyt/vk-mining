@@ -8,6 +8,16 @@
 
 const VK = require('vksdk');
 
+/**
+ * @param {number} ms
+ * @returns {Promise}
+ */
+function sleep(ms) {
+  return new Promise(resolve => {
+    setTimeout(() => resolve(), ms);
+  });
+}
+
 class VKMiner {
   /**
    * @param {number} appId
@@ -22,10 +32,12 @@ class VKMiner {
   /**
    * @param {string} method
    * @param {Object} parameters
+   * @param {number} [retriesCount=0]
    * @returns {Promise}
    * @private
    */
-  request_(method, parameters) {
+  request_(method, parameters, retriesCount) {
+    retriesCount = retriesCount || 0;
     return new Promise((resolve, reject) => {
       this.vkReject = reject;
       this.vk.request(method, parameters, res => {
@@ -42,6 +54,12 @@ class VKMiner {
           resolve(res.response);
         }
       });
+    }).then(null, err => {
+      if (retriesCount > 3) throw err;
+    }).then(() => {
+      return sleep(++retriesCount * 10000);
+    }).then(() => {
+      return this.request_(method, parameters, retriesCount);
     });
   }
 
