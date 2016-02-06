@@ -6,38 +6,7 @@
  */
 'use strict';
 
-const argv = require('yargs')
-    .option('words', {
-      alias: 'w',
-      default: true,
-      type: 'boolean'
-    })
-    .option('phrases', {
-      alias: 'p',
-      default: [],
-      type: 'array',
-      description: 'enables experimental phrases extraction',
-      usage: 'specify the list of phrases length, for example: 2,3,4,' +
-      'note that work with long phrases may took significant time'
-    })
-    .option('mongoPort', {
-      alias: 'P',
-      default: 27017,
-      type: 'number'
-    })
-    .option('mongoHost', {
-      alias: 'H',
-      default: 'localhost'
-    })
-    .option('mongoDbName', {
-      alias: 'D',
-      demand: true,
-      type: 'string'
-    })
-    .argv;
-const co = require('co');
 const MyStem = require('mystem3');
-const MongoClient = require('mongodb').MongoClient;
 const meaninglessWords = require('./words-meaningless');
 
 // next functions will be executed within MongoDB, so they should be in ES5
@@ -117,6 +86,10 @@ function phrasesMap() {
 
 // end of mongodb functions
 
+/**
+ * @param {Object} collection
+ * @param {Object} normalizedCollection
+ */
 function* normalize(collection, normalizedCollection) {
   const myStem = new MyStem();
   myStem.start();
@@ -134,12 +107,16 @@ function* normalize(collection, normalizedCollection) {
   myStem.stop();
 }
 
-co(function*() {
-  const db = yield MongoClient.connect(`mongodb://${argv.mongoHost}:${argv.mongoPort}/${argv.mongoDbName}`);
+/**
+ * @param {boolean} words
+ * @param {Array<number>} phrases
+ * @param {Object} db
+ */
+function* countWords(words, phrases, db) {
   const posts = db.collection('posts');
 
-  if (argv.words) {
-    console.log('* processing words');
+  if (words) {
+    console.log('- processing words');
     console.log('\textracting words');
     // replace because function will be passed to Mongo as string
     const fMap = map.toString().replace('meaninglessWords', JSON.stringify(meaninglessWords));
@@ -155,19 +132,62 @@ co(function*() {
     }
     yield normalize(db.collection('words'), db.collection('wordsNorm'));
     console.log('\tfinished words normalization');
-    console.log('* finished words processing')
+    console.log('- finished words processing')
   }
 
-  for (let i = 0; i < argv.phrases.length; ++i) {
-    const phraseLength = argv.phrases[i];
+  for (let i = 0; i < phrases.length; ++i) {
+    const phraseLength = phrases[i];
     if (phraseLength < 2) continue;
     const pfMap = phrasesMap.toString().replace(new RegExp('phraseLength', 'g'), phraseLength);
-    console.log(`* extracting phrases with length of ${phraseLength}`);
+    console.log(`- extracting phrases with length of ${phraseLength}`);
     yield posts.mapReduce(pfMap, reduce, {out: {replace: `phrases-${phraseLength}`}, sort: {date: -1}, limit: 300});
-    console.log(`* finished extraction of phrases with length of ${phraseLength}`);
+    console.log(`- finished extraction of phrases with length of ${phraseLength}`);
     yield db.createIndex(`phrases-${phraseLength}`, {value: true});
   }
-  db.close();
+}
+
+exports.countWords = countWords;
+
+if (module.parent) return;
+const argv = require('yargs')
+    .option('words', {
+      alias: 'w',
+      default: true,
+      type: 'boolean'
+    })
+    .option('phrases', {
+      alias: 'p',
+      default: [],
+      type: 'array',
+      description: 'enables experimental phrases extraction',
+      usage: 'specify the list of phrases length, for example: 2,3,4,' +
+      'note that work with long phrases may took significant time'
+    })
+    .option('mongoPort', {
+      alias: 'P',
+      default: 27017,
+      type: 'number'
+    })
+    .option('mongoHost', {
+      alias: 'H',
+      default: 'localhost'
+    })
+    .option('mongoDbName', {
+      alias: 'D',
+      demand: true,
+      type: 'string'
+    })
+    .argv;
+const co = require('co');
+const MongoClient = require('mongodb').MongoClient;
+
+co(function*() {
+  const db = yield MongoClient.connect(`mongodb://${argv.mongoHost}:${argv.mongoPort}/${argv.mongoDbName}`);
+  try {
+    yield countWords(argv.words, argv.phrases, db);
+  } finally {
+    yield db.close();
+  }
 }).catch(err => {
   console.error(err.stack);
 });

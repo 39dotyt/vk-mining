@@ -14,10 +14,9 @@ class VKMiner {
    * @param {string} appSecret
    */
   constructor(appId, appSecret) {
-    this.vk = new VK({
-      appId: appId,
-      appSecret: appSecret
-    });
+    this.vk = new VK({appId, appSecret});
+    this.vk.on('http-error', err => this.vkReject(err));
+    this.vk.on('parse-error', err => this.vkReject(err));
   }
 
   /**
@@ -28,10 +27,16 @@ class VKMiner {
    */
   request_(method, parameters) {
     return new Promise((resolve, reject) => {
+      this.vkReject = reject;
       this.vk.request(method, parameters, res => {
-        if (res.error) {
-          const err = new Error(res.error.error_msg);
-          err.description = res.error;
+        if (!res.response) {
+          let err;
+          if (res.error) {
+            err = new Error(res.error.error_msg);
+            err.description = res.error;
+          } else {
+            err = new Error(JSON.stringify(res));
+          }
           reject(err);
         } else {
           resolve(res.response);
@@ -82,7 +87,7 @@ class VKMiner {
 
     const scheduledForComments = [];
 
-    items.forEach(function(item) {
+    items.forEach(item => {
       if (item.comments && item.comments.count) scheduledForComments.push(item.id);
       item.comments = [];
       item._id = item.id;
@@ -110,9 +115,9 @@ class VKMiner {
     const posts = db.collection('posts');
     yield db.createIndex('posts', {date: true});
 
-    console.log('* loading wall');
+    console.log(`- loading wall ${pageId}`);
     yield this.loadWall_(pageId, posts, 0);
-    console.log(`* finished wall loading, loaded ${yield posts.count()} posts`);
+    console.log(`- finished loading wall ${pageId}, loaded ${yield posts.count()} posts`);
   }
 }
 
@@ -156,10 +161,12 @@ const MongoClient = require('mongodb').MongoClient;
 co(function*() {
   const db = yield MongoClient.connect(`mongodb://${argv.mongoHost}:${argv.mongoPort}/${argv.mongoDbName}`);
 
-  const vkMiner = new VKMiner(argv.appId, argv.appSecret);
-  yield vkMiner.loadWall(argv.pageId, db);
-
-  db.close();
+  try {
+    const vkMiner = new VKMiner(argv.appId, argv.appSecret);
+    yield vkMiner.loadWall(argv.pageId, db);
+  } finally {
+    yield db.close();
+  }
 }).catch(err => {
   console.error(err.stack);
 });
