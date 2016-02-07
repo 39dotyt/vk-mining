@@ -8,6 +8,7 @@
 
 const VKMiner = require('./vk-miner');
 const wordCounter = require('./vk-word-counter');
+const MongoClient = require('mongodb').MongoClient;
 
 /**
  * @typedef {Object} Page
@@ -87,7 +88,6 @@ const argv = require('yargs')
     })
     .argv;
 const co = require('co');
-const MongoClient = require('mongodb').MongoClient;
 
 co(function*() {
   yield mineAndCount(
