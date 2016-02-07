@@ -56,10 +56,11 @@ class VKMiner {
       });
     }).then(res => {
       // vk API limits requests amount to 3 per second
-      return sleep(21000).then(() => res);
+      return sleep(20100).then(() => res);
     }, err => {
       if (retriesCount > 3) throw err;
-      return sleep(25000);
+      console.warn(`vk request error: '${err.toString()}', retrying`);
+      return sleep(30000);
     }).then(res => {
       return res || this.request_(method, parameters, retriesCount);
     });
