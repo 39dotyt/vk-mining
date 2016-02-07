@@ -116,13 +116,13 @@ function* countWords(words, phrases, db) {
   const posts = db.collection('posts');
 
   if (words) {
-    console.log('- processing words');
-    console.log('\textracting words');
+    console.log(`- processing words in db ${db.databaseName}`);
+    console.log(`\textracting words in db ${db.databaseName}`);
     // replace because function will be passed to Mongo as string
     const fMap = map.toString().replace('meaninglessWords', JSON.stringify(meaninglessWords));
     yield posts.mapReduce(fMap, reduce, {out: {replace: 'words'}, finalize});
-    console.log('\tfinished words extraction');
-    console.log('\tnormalizing words');
+    console.log(`\tfinished words extraction in db ${db.databaseName}`);
+    console.log(`\tnormalizing words in db ${db.databaseName}`);
     const collections = yield db.listCollections().toArray();
     for (let i = 0; i < collections.length; ++i) {
       if (collections[i].name === 'wordsNorm') {
@@ -131,8 +131,8 @@ function* countWords(words, phrases, db) {
       }
     }
     yield normalize(db.collection('words'), db.collection('wordsNorm'));
-    console.log('\tfinished words normalization');
-    console.log('- finished words processing')
+    console.log(`\tfinished words normalization in db ${db.databaseName}`);
+    console.log(`- finished words processing in db ${db.databaseName}`);
   }
 
   for (let i = 0; i < phrases.length; ++i) {

@@ -133,9 +133,9 @@ class VKMiner {
     const posts = db.collection('posts');
     yield db.createIndex('posts', {date: true});
 
-    console.log(`- loading wall ${pageId}`);
+    console.log(`- loading wall ${pageId} to db ${db.databaseName}`);
     yield this.loadWall_(pageId, posts, 0);
-    console.log(`- finished loading wall ${pageId}, loaded ${yield posts.count()} posts`);
+    console.log(`- finished loading wall ${pageId} to db ${db.databaseName}, loaded ${yield posts.count()} posts`);
   }
 }
 
