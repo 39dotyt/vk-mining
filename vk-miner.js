@@ -6,7 +6,7 @@
  */
 'use strict';
 
-const VK = require('vksdk');
+const request = require('request');
 const ActivityIndicator = require('./activity-indicator');
 
 /**
@@ -21,13 +21,10 @@ function sleep(ms) {
 
 class VKMiner {
   /**
-   * @param {number} appId
    * @param {string} appSecret
    */
-  constructor(appId, appSecret) {
-    this.vk = new VK({appId, appSecret, secure: true});
-    this.vk.on('http-error', err => this.vkReject(err));
-    this.vk.on('parse-error', err => this.vkReject(err));
+  constructor(appSecret) {
+    this.appSecret_ = appSecret;
   }
 
   /**
@@ -41,24 +38,35 @@ class VKMiner {
     retriesCount = retriesCount || 0;
     this.activityIndicator.update();
     return new Promise((resolve, reject) => {
-      this.vkReject = reject;
-      this.vk.request(method, parameters, res => {
-        if (!res.response) {
-          let err;
-          if (res.error) {
-            err = new Error(res.error.error_msg);
-            err.description = res.error;
-          } else {
-            err = new Error(JSON.stringify(res));
-          }
+      const requestObject = {
+        lang: 'ru',
+        v: '5.27',
+        https: true,
+        appSecret: this.appSecret_
+      };
+      Object.assign(requestObject, parameters);
+      request.post(`https://api.vk.com/method/${method}`, {form: requestObject}, (err, _, res) => {
+        if (err) {
           reject(err);
+          return;
+        }
+        res = JSON.parse(res);
+        if (!res.response) {
+          let vkError;
+          if (res.error) {
+            vkError = new Error(res.error.error_msg);
+            vkError.description = res.error;
+          } else {
+            vkError = new Error(JSON.stringify(res));
+          }
+          reject(vkError);
         } else {
           resolve(res.response);
         }
       });
     }).then(res => {
-      // vk API limits server requests amount to 5 per second
-      return sleep(210).then(() => res);
+      // tiny sleep to not overload vk servers
+      return sleep(10).then(() => res);
     }, err => {
       if (retriesCount > 3) throw err;
       console.warn(`vk request error: '${err.toString()}', retrying`);

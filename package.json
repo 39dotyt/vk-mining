@@ -24,7 +24,6 @@
   "dependencies": {
     "co": "^4.6.0",
     "request": "^2.69.0",
-    "vksdk": "^5.3.1",
     "mongodb": "^2.1.5",
     "mystem3": "^1.0.7",
     "yargs": "^3.32.0"
