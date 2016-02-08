@@ -26,7 +26,7 @@ function map() {
     text = text.split(' ');
     text.forEach(function(word) {
       if (!isNaN(Number(word))) return;
-      if (1 === word.length || word.length > 512) return;
+      if (1 === word.length || word.length > 300) return;
       var result = {};
       var date = new Date(document.date * 1000);
       var monthIndex = `${date.getFullYear()}-${date.getMonth() + 1}`;
@@ -73,7 +73,7 @@ function phrasesMap() {
     var limit = text.length - phraseLength;
     for (var i = 0 ; i < limit; ++i) {
       var phrase = text.slice(i, i + phraseLength).join(' ');
-      if (phrase.length > 512) continue;
+      if (phrase.length > 300) continue;
       emit(phrase, 1);
     }
   }
