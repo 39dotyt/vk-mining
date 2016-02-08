@@ -117,7 +117,20 @@ class VKMiner {
       delete item.id;
     });
 
-    yield posts.insertMany(items);
+    while (true) {
+      try {
+        yield posts.insertMany(items);
+        break;
+      } catch (err) {
+        // 11000 - mongo duplicate key error
+        // seems, like someone added a new post
+        if (err.code === 11000) {
+          items.shift();
+        } else {
+          throw err;
+        }
+      }
+    }
 
     for (let i = 0; i < scheduledForComments.length; ++i) {
       yield this.loadComments_(pageId, posts, scheduledForComments[i], 0);
