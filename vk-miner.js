@@ -7,6 +7,7 @@
 'use strict';
 
 const VK = require('vksdk');
+const ActivityIndicator = require('./activity-indicator');
 
 /**
  * @param {number} ms
@@ -38,6 +39,7 @@ class VKMiner {
    */
   request_(method, parameters, retriesCount) {
     retriesCount = retriesCount || 0;
+    this.activityIndicator.update();
     return new Promise((resolve, reject) => {
       this.vkReject = reject;
       this.vk.request(method, parameters, res => {
@@ -137,7 +139,9 @@ class VKMiner {
     yield db.createIndex('posts', {date: true});
 
     console.log(`- loading wall ${pageId} to db ${db.databaseName}`);
+    this.activityIndicator = new ActivityIndicator();
     yield this.loadWall_(pageId, posts, 0);
+    this.activityIndicator.destroy();
     console.log(`- finished loading wall ${pageId} to db ${db.databaseName}, loaded ${yield posts.count()} posts`);
   }
 }
