@@ -17,16 +17,14 @@ const MongoClient = require('mongodb').MongoClient;
  */
 
 /**
- * @param {number} appId
- * @param {string} appSecret
  * @param {Array<Page>} pages
  * @param {string} mongoHost
  * @param {number} mongoPort
  * @param {boolean} words
  * @param {Array<number>} phrases
  */
-function* mineAndCount(appId, appSecret, pages, mongoHost, mongoPort, words, phrases) {
-  const vkMiner = new VKMiner(appId, appSecret);
+function* mineAndCount(pages, mongoHost, mongoPort, words, phrases) {
+  const vkMiner = new VKMiner();
 
   for (let i = 0; i < pages.length; ++i) {
     const page = pages[i];
@@ -44,15 +42,6 @@ module.exports = mineAndCount;
 
 if (module.parent) return;
 const argv = require('yargs')
-    .option('appId', {
-      alias: 'a',
-      demand: true,
-      type: 'number'
-    })
-    .option('appSecret', {
-      alias: 's',
-      demand: true
-    })
     .option('pageId', {
       alias: 'i',
       demand: true,
@@ -91,7 +80,6 @@ const co = require('co');
 
 co(function*() {
   yield mineAndCount(
-      argv.appId, argv.appSecret,
       [{id: argv.pageId, dbName: argv.mongoDbName}],
       argv.mongoHost, argv.mongoPort,
       argv.words, argv.phrases

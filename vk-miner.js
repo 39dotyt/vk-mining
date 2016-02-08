@@ -21,13 +21,6 @@ function sleep(ms) {
 
 class VKMiner {
   /**
-   * @param {string} appSecret
-   */
-  constructor(appSecret) {
-    this.appSecret_ = appSecret;
-  }
-
-  /**
    * @param {string} method
    * @param {Object} parameters
    * @param {number} [retriesCount=0]
@@ -38,39 +31,37 @@ class VKMiner {
     retriesCount = retriesCount || 0;
     this.activityIndicator.update();
     return new Promise((resolve, reject) => {
-      const requestObject = {
-        lang: 'ru',
-        v: '5.27',
-        https: true,
-        appSecret: this.appSecret_
-      };
-      Object.assign(requestObject, parameters);
-      request.post(`https://api.vk.com/method/${method}`, {form: requestObject}, (err, _, res) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        res = JSON.parse(res);
-        if (!res.response) {
-          let vkError;
-          if (res.error) {
-            vkError = new Error(res.error.error_msg);
-            vkError.description = res.error;
-          } else {
-            vkError = new Error(JSON.stringify(res));
+      const requestObject = Object.assign({lang: 'ru', v: '5.27'}, parameters);
+      request.post(
+          `https://api.vk.com/method/${method}`,
+          {form: requestObject, timeout: 10000},
+          (err, _, res) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            res = JSON.parse(res);
+            if (!res.response) {
+              let vkError;
+              if (res.error) {
+                vkError = new Error(res.error.error_msg);
+                vkError.description = res.error;
+              } else {
+                vkError = new Error(JSON.stringify(res));
+              }
+              reject(vkError);
+            } else {
+              resolve(res.response);
+            }
           }
-          reject(vkError);
-        } else {
-          resolve(res.response);
-        }
-      });
+      );
     }).then(res => {
       // tiny sleep to not overload vk servers
       return sleep(10).then(() => res);
     }, err => {
       if (retriesCount > 3) throw err;
       console.warn(`vk request error: '${err.toString()}', retrying`);
-      return sleep(++retriesCount * 1000);
+      return sleep(++retriesCount * 10000);
     }).then(res => {
       return res || this.request_(method, parameters, retriesCount);
     });
@@ -171,15 +162,6 @@ module.exports = VKMiner;
 
 if (module.parent) return;
 const argv = require('yargs')
-    .option('appId', {
-      alias: 'a',
-      demand: true,
-      type: 'number'
-    })
-    .option('appSecret', {
-      alias: 's',
-      demand: true
-    })
     .option('pageId', {
       alias: 'i',
       demand: true,
@@ -208,7 +190,7 @@ co(function*() {
   const db = yield MongoClient.connect(`mongodb://${argv.mongoHost}:${argv.mongoPort}/${argv.mongoDbName}`);
 
   try {
-    const vkMiner = new VKMiner(argv.appId, argv.appSecret);
+    const vkMiner = new VKMiner();
     yield vkMiner.loadWall(argv.pageId, db);
   } finally {
     yield db.close();

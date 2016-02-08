@@ -1,6 +1,6 @@
 {
   "name": "vk-mining",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "license": "MIT",
   "description": "vk.com mining scripts",
   "author": {
@@ -17,7 +17,9 @@
   },
   "homepage": "https://github.com/39dotyt/vk-mining#readme",
   "keywords": [
-    "stuff"
+    "data mining",
+    "web mining",
+    "vk"
   ],
   "main": "vk-miner",
   "readmeFilename": "README.md",
