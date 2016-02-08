@@ -40,7 +40,12 @@ class VKMiner {
               reject(err);
               return;
             }
-            res = JSON.parse(res);
+            try {
+              res = JSON.parse(res);
+            } catch (err) {
+              reject(err);
+              return;
+            }
             if (!res.response) {
               let vkError;
               if (res.error) {
@@ -55,10 +60,7 @@ class VKMiner {
             }
           }
       );
-    }).then(res => {
-      // tiny sleep to not overload vk servers
-      return sleep(10).then(() => res);
-    }, err => {
+    }).then(null, err => {
       if (retriesCount > 3) throw err;
       console.warn(`vk request error: '${err.toString()}', retrying`);
       return sleep(++retriesCount * 10000);
