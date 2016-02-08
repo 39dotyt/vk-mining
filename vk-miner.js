@@ -25,7 +25,7 @@ class VKMiner {
    * @param {string} appSecret
    */
   constructor(appId, appSecret) {
-    this.vk = new VK({appId, appSecret});
+    this.vk = new VK({appId, appSecret, secure: true});
     this.vk.on('http-error', err => this.vkReject(err));
     this.vk.on('parse-error', err => this.vkReject(err));
   }
